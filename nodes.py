@@ -2,9 +2,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from models import GraphState, Exemplar, RetrievedProblem, Plan, parser
 from utils import mask_output, extract_expected_output, extract_sample_io, extract_outputs, extract_problem_without_testcase, test_code
 from llm import model
+# from app import update_progress
 
 def run_test_case_analysis(state:GraphState):
     print("-----GENERATING INITIAL TEST CASE ANALYSIS-----")
+    # update_progress("-----GENERATING INITIAL TEST CASE ANALYSIS-----")
     original_problem = state['problem']
 #     original_problem = question
     test_case_analysis_prompt = ChatPromptTemplate.from_messages(
@@ -44,6 +46,7 @@ def run_test_case_analysis(state:GraphState):
 
 def correctness_checking(state:GraphState):
     print("-----INFERRING OUTPUT FROM TEST CASE ANALYSIS-----")
+    # update_progress("-----INFERRING OUTPUT FROM TEST CASE ANALYSIS-----")
     #     initial_understanding = r
     #     original_problem = question
     
@@ -106,6 +109,7 @@ def correctness_checking(state:GraphState):
 
 def misunderstanding_fixing(state:GraphState):
     print("-----DESICION: REFINING TEST CASE ANALYSIS-----")
+    # update_progress("-----DESICION: REFINING TEST CASE ANALYSIS-----")
     original_problem = state['problem']
     current_understanding = state['test_case_analysis']
     inferred_output = state['inferred_output']
@@ -162,6 +166,7 @@ def misunderstanding_fixing(state:GraphState):
 
 def retrieval_agent(state: GraphState) -> GraphState:
     print("-----RETRIEVING RELEVANT PROBLEMS-----")
+    # update_progress("-----RETRIEVING RELEVANT PROBLEMS-----")
     original_problem = state['problem']
     retrieval_prompt = ChatPromptTemplate.from_messages(
         [
@@ -208,6 +213,7 @@ def retrieval_agent(state: GraphState) -> GraphState:
 
 def planning_agent(state: GraphState) -> GraphState:
     print("-----GENERATING PLANS-----")
+    # update_progress("-----GENERATING PLANS-----")
     original_problem = state['problem']
     relevant_problems = state['relevant_problems']
     correct_understanding = state['correct_understanding']
@@ -322,6 +328,7 @@ def planning_agent(state: GraphState) -> GraphState:
 def coding_agent(state: GraphState) -> GraphState:
     cur_plan = state['cur_plan']
     print(f"-----GENERATING CODE FOR PLAN {cur_plan + 1}-----")
+    # update_progress(f"-----GENERATING CODE FOR PLAN {cur_plan + 1}-----")
     plans = state['plans']
     current_plan = plans[cur_plan]
     original_problem = state['problem']
@@ -388,6 +395,7 @@ def coding_agent(state: GraphState) -> GraphState:
 
 def executor_agent(state:GraphState)->GraphState:
     print("-----TESTING CODE AGAINST SAMPLE IO-----")
+    # update_progress("-----TESTING CODE AGAINST SAMPLE IO-----")
     code = state['generated_code']
     original_problem = state['problem']
     
@@ -420,6 +428,7 @@ def human_feedback(state:GraphState):
 
 def debugging_agent(state:GraphState)->GraphState:
     print("-----DEBUGGING-----")
+    # update_progress("-----DEBUGGING-----")
     code_exec_result = state['code_exec_result']
     generated_code = state['generated_code']
     original_problem = state['problem']
