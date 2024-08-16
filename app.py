@@ -11,28 +11,44 @@ st.write("## Input Section")
 st.markdown("""
 ### Instructions:
 Please input your problem in the following format:
-1. **Problem Statement:** Provide the complete problem description followed by **'-----Example-----'** to signify the start of the test-cases.
+1. **Problem Statement:** Provide the complete problem description followed by **'-----Example-----'** to signify the start of the test cases.
 2. **Input/Output Format:** Mention **'Input:'** followed by all the inputs. Then **'Output:'** followed by the outputs. End with a **'-----Note-----'**
 
 **Example Format:**""")
-problem_desc = st.text_area("Enter the problem here: ", height = 300, value="")
 
-# Run your code based on the inputs
+# Problem Description Input
+problem_desc = st.text_area(
+    "Enter the problem here: ",
+    height=300,
+    placeholder="""
+    <problem_description>
+    "-----Example-----"
+    "Input:"
+    <inputs>
+    "Output:"
+    <outputs>
+    "-----Note-----"
+    """
+)
+
+# Button to start solving the problem
 if st.button("Solve Problem"):
-    # Insert your code logic here, using the parameters from the sidebar
+    # Initialize the problem state
     initial_state = create_initial_state(problem_desc)
     config = RunnableConfig(
-        recursion_limit = 70,
-        configurable = {"thread_id": "129"}
+        recursion_limit=70,
+        configurable={"thread_id": "150"}
     )
-    result = app.invoke(initial_state, config)
-    success = False
 
+    # Invoke the graph
+    result = app.invoke(initial_state, config)
     execution_result = result['code_exec_result']
+
     if execution_result['execution_successful'] and execution_result['output_matches']:
         st.success("Working solution was found")
         generated_code = result['generated_code']
-        st.code(f"Generated code: {generated_code}", language="python")
+        st.write("Generated code:")
+        st.code(generated_code, language="python")
     else:
         state_history = list(app.get_state_history(config))
         all_states = []
@@ -47,45 +63,53 @@ if st.button("Solve Problem"):
                     if current_plan == next_plan-1:
                         relevant_states.append(state)
         relevant_states.append(app.get_state(config))
-        
-        st.write("## Report of explored options:")
+
+        # Display Report of explored options
+        st.write("## Report of Explored Options:")
         st.divider()
 
+        num_columns = min(len(relevant_states), 3)
+        columns = st.columns(num_columns)
+
         for i, state in enumerate(relevant_states):
-            state_values = state.values
-            st.write(f"## Path {i+1}")
-            st.write(f"### Modified Plan {i+1} after debugging:")
-            st.write(state_values['modified_plan'])
-            st.write("### Confidence Score: ", state_values['plans'][i].confidence_score)
-            code_exec_result = state_values['code_exec_result']
-            st.write("### Code Execution Result: ", code_exec_result)
-            st.divider()
-        
+            col = columns[i % num_columns]
+            with col:
+                st.write(f"## Path {i + 1}")
+                st.write(f"### Modified Plan {i + 1} after debugging:")
+                st.write(state.values['modified_plan'])
+                st.write("### Confidence Score:", state.values['plans'][i].confidence_score)
+                st.write("### Code Execution Result:", state.values['code_exec_result'])
+                st.divider()
+
+        # User's choice of the most accurate plan
         user_plan_choice = st.number_input(
             "Which plan seems most accurate?",
-            min_value = 1, max_value = len(relevant_states),
-            value = 1 ,
-            placeholder = "Type 1 for Plan 1, 2 for Plan 2 etc..."
+            min_value=1, max_value=len(relevant_states),
+            value=1,
+            help="Type 1 for Plan 1, 2 for Plan 2, etc."
         )
+
+        # User feedback area
         user_feedback = st.text_area(
             "Provide some feedback to assist in the debugging process.",
-            placeholder = "Enter feedback/suggestion here..."
+            placeholder="Enter feedback/suggestion here..."
         )
 
-        relevant_state_config = relevant_states[user_plan_choice-1].config
-        debug_iterations = [0 if i == user_plan_choice-1 else 3 for i in range(3)]
-        branch_config = app.update_state(
-            relevant_state_config,
-            {
-                "cur_plan": user_plan_choice-1,
-                "user_feedback": user_feedback,
-                "taken_feedback": True,
-                "debug_iterations": debug_iterations
-            }
-        )
-
-        if st.button("Retry with feedback"):
-            result = app.invoke(None, branch_config)
-
-
-# Add more sections or outputs as needed
+        # Handling retry logic with user feedback
+        if st.button("Retry with Feedback"):
+            if user_feedback.strip():  # Ensure that feedback is provided
+                relevant_state_config = relevant_states[user_plan_choice - 1].config
+                debug_iterations = [0 if i == user_plan_choice - 1 else 3 for i in range(3)]
+                branch_config = app.update_state(
+                    relevant_state_config,
+                    {
+                        "cur_plan": user_plan_choice - 1,
+                        "user_feedback": user_feedback,
+                        "taken_feedback": True,
+                        "debug_iterations": debug_iterations
+                    }
+                )
+                result = app.invoke(None, branch_config)
+                st.experimental_rerun()  # Re-run the app with the new state
+            else:
+                st.warning("Please provide some feedback before retrying.")
