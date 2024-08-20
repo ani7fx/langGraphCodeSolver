@@ -2,9 +2,16 @@ import streamlit as st
 from graph import app
 from utils import create_initial_state
 from langchain_core.runnables.config import RunnableConfig
+import uuid
 
 st.set_page_config(layout="wide", page_title="Code Solver")
 st.title("Competitive Coding Solver")
+
+def reset_state():
+    st.session_state.problem_solved = False
+    st.session_state.feedback_given = False
+    st.session_state.relevant_states = []
+    st.session_state.solution = None
 
 # Initialize session state variables
 if "problem_solved" not in st.session_state:
@@ -13,6 +20,14 @@ if "feedback_given" not in st.session_state:
     st.session_state.feedback_given = False
 if "relevant_states" not in st.session_state:
     st.session_state.relevant_states = []
+if "solution" not in st.session_state:
+    st.session_state.solution = None
+
+# Display solution if it exists
+if st.session_state.solution:
+    st.success("Working solution was found")
+    st.write("Generated code:")
+    st.code(st.session_state.solution, language="python")
 
 # Input Section
 if not st.session_state.problem_solved:
@@ -43,7 +58,7 @@ if not st.session_state.problem_solved:
         initial_state = create_initial_state(problem_desc)
         config = RunnableConfig(
             recursion_limit=70,
-            configurable={"thread_id": "251"}
+            configurable={"thread_id": str(uuid.uuid4())}
         )
 
         with st.spinner("Generating a solution..."):
@@ -52,10 +67,7 @@ if not st.session_state.problem_solved:
         execution_result = result['code_exec_result']
         if execution_result['execution_successful'] and execution_result['output_matches']:
             st.session_state.problem_solved = True
-            st.success("Working solution was found")
-            generated_code = result['generated_code']
-            st.write("Generated code:")
-            st.code(generated_code, language="python")
+            st.session_state.solution = result['generated_code']
         else:
             state_history = list(app.get_state_history(config))
             relevant_states = []
@@ -129,10 +141,9 @@ if st.session_state.feedback_given:
         result = app.invoke(None, branch_config)
         execution_result = result['code_exec_result']
         if execution_result['execution_successful'] and execution_result['output_matches']:
-            st.success("Working solution was found")
-            generated_code = result['generated_code']
-            st.write("Generated code:")
-            st.code(generated_code, language="python")
+            st.session_state.problem_solved = True
+            st.session_state.solution = result['generated_code']
+            st.rerun()
         else:
             st.error("Working code could not be found.")
             st.write("Current code:")
@@ -140,3 +151,7 @@ if st.session_state.feedback_given:
     
     # Reset feedback state
     st.session_state.feedback_given = False
+
+if st.button("Start New Problem"):
+    reset_state()
+    st.rerun()
