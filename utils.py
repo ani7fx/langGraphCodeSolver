@@ -179,6 +179,14 @@ def check_inferred_output(state:GraphState):
         else:
             print("-----DESICION: COULD NOT GENERATE ACCURATE TEST CASE ANALYSIS-----")
             return "proceed"
+
+def extract_modified_plan(text):
+    # Use regex to match the subheading "Modified Plan:" and everything that follows
+    match = re.search(r"(Modified Plan:.*)", text, re.DOTALL)
+    if match:
+        return match.group(1)
+    else:
+        return None
         
 def create_initial_state(problem:str)->GraphState:
     return GraphState(

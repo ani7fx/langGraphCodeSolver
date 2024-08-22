@@ -1,6 +1,6 @@
 import streamlit as st
 from graph import app
-from utils import create_initial_state
+from utils import create_initial_state, extract_modified_plan
 from langchain_core.runnables.config import RunnableConfig
 import uuid
 
@@ -84,6 +84,7 @@ if not st.session_state.problem_solved:
 
 # Feedback Section
 if not st.session_state.problem_solved and st.session_state.relevant_states:
+    st.error("Working solution could not be found.")
     st.write("## Report of Explored Options:")
     st.divider()
 
@@ -95,7 +96,9 @@ if not st.session_state.problem_solved and st.session_state.relevant_states:
         with col:
             st.write(f"## Path {i + 1}")
             st.write(f"### Modified Plan {i + 1} after debugging:")
-            st.write(state.values['modified_plan'])
+            # st.write(state.values['modified_plan'])
+            modified_plan = extract_modified_plan(state.values['modified_plan'])
+            st.write(modified_plan)
             st.write("### Confidence Score:", state.values['plans'][i].confidence_score)
             st.write("### Code Execution Result:", state.values['code_exec_result'])
             st.divider()
@@ -122,7 +125,7 @@ if not st.session_state.problem_solved and st.session_state.relevant_states:
             st.warning("Please provide some feedback before retrying.")
 
 # Retry with Feedback
-if st.session_state.feedback_given:
+if st.session_state.feedback_given and not st.session_state.problem_solved:
     relevant_state = st.session_state.relevant_states[st.session_state.user_plan_choice - 1]
     relevant_state_config = relevant_state.config
     user_feedback = st.session_state.user_feedback

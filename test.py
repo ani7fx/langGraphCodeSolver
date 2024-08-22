@@ -1,6 +1,6 @@
 import streamlit as st
 from graph import app
-from utils import create_initial_state
+from utils import create_initial_state, extract_modified_plan
 from langchain_core.runnables.config import RunnableConfig
 import uuid
 
@@ -28,9 +28,12 @@ if st.session_state.solution:
     st.success("Working solution was found")
     st.write("Generated code:")
     st.code(st.session_state.solution, language="python")
+    if st.button("Start New Problem"):
+        reset_state()
+        st.rerun()
 
 # Input Section
-if not st.session_state.problem_solved:
+elif not st.session_state.problem_solved:
     st.write("## Input Section")
     st.markdown("""
     ### Instructions:
@@ -68,6 +71,7 @@ if not st.session_state.problem_solved:
         if execution_result['execution_successful'] and execution_result['output_matches']:
             st.session_state.problem_solved = True
             st.session_state.solution = result['generated_code']
+            st.rerun()
         else:
             state_history = list(app.get_state_history(config))
             relevant_states = []
@@ -80,10 +84,11 @@ if not st.session_state.problem_solved:
                             relevant_states.append(state)
             relevant_states.append(app.get_state(config))
             st.session_state.relevant_states = relevant_states
-        st.rerun()
+            st.rerun()
 
 # Feedback Section
-if not st.session_state.problem_solved and st.session_state.relevant_states:
+elif not st.session_state.problem_solved and st.session_state.relevant_states:
+    st.error("Working solution could not be found.")
     st.write("## Report of Explored Options:")
     st.divider()
 
@@ -95,7 +100,8 @@ if not st.session_state.problem_solved and st.session_state.relevant_states:
         with col:
             st.write(f"## Path {i + 1}")
             st.write(f"### Modified Plan {i + 1} after debugging:")
-            st.write(state.values['modified_plan'])
+            modified_plan = extract_modified_plan(state.values['modified_plan'])
+            st.write(modified_plan)
             st.write("### Confidence Score:", state.values['plans'][i].confidence_score)
             st.write("### Code Execution Result:", state.values['code_exec_result'])
             st.divider()
@@ -114,43 +120,32 @@ if not st.session_state.problem_solved and st.session_state.relevant_states:
 
     if st.button("Retry with Feedback"):
         if user_feedback.strip():
-            st.session_state.feedback_given = True
-            st.session_state.user_plan_choice = user_plan_choice
-            st.session_state.user_feedback = user_feedback
-            st.rerun()
+            relevant_state = st.session_state.relevant_states[user_plan_choice - 1]
+            relevant_state_config = relevant_state.config
+
+            debug_iterations = [0 if i == user_plan_choice - 1 else 3 for i in range(3)]
+            branch_config = app.update_state(
+                relevant_state_config,
+                {
+                    "cur_plan": user_plan_choice - 1,
+                    "user_feedback": user_feedback,
+                    "taken_feedback": True,
+                    "debug_iterations": debug_iterations
+                }
+            )
+            with st.spinner("Re-trying with user feedback..."):
+                result = app.invoke(None, branch_config)
+                execution_result = result['code_exec_result']
+                if execution_result['execution_successful'] and execution_result['output_matches']:
+                    st.session_state.problem_solved = True
+                    st.session_state.solution = result['generated_code']
+                    st.rerun()
+                else:
+                    st.error("Working code could not be found.")
+                    st.write("Current code:")
+                    st.code(result['generated_code'], language="python")
         else:
             st.warning("Please provide some feedback before retrying.")
-
-# Retry with Feedback
-if st.session_state.feedback_given:
-    relevant_state = st.session_state.relevant_states[st.session_state.user_plan_choice - 1]
-    relevant_state_config = relevant_state.config
-    user_feedback = st.session_state.user_feedback
-
-    debug_iterations = [0 if i == st.session_state.user_plan_choice - 1 else 3 for i in range(3)]
-    branch_config = app.update_state(
-        relevant_state_config,
-        {
-            "cur_plan": st.session_state.user_plan_choice - 1,
-            "user_feedback": user_feedback,
-            "taken_feedback": True,
-            "debug_iterations": debug_iterations
-        }
-    )
-    with st.spinner("Re-trying with user feedback..."):
-        result = app.invoke(None, branch_config)
-        execution_result = result['code_exec_result']
-        if execution_result['execution_successful'] and execution_result['output_matches']:
-            st.session_state.problem_solved = True
-            st.session_state.solution = result['generated_code']
-            st.rerun()
-        else:
-            st.error("Working code could not be found.")
-            st.write("Current code:")
-            st.code(result['generated_code'], language="python")
-    
-    # Reset feedback state
-    st.session_state.feedback_given = False
 
 if st.button("Start New Problem"):
     reset_state()

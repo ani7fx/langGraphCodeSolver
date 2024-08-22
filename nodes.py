@@ -452,12 +452,14 @@ def debugging_agent(state:GraphState)->GraphState:
 
                 Your task is to provide a modified planning to solve the original problem. Analyse the problem, understand where
                 the current code is incorrect, and generate a plan to solve the original problem. Make sure that you
-                - Explain the plan in as much detail as possible.
+                - Explain each step in detail
                 - Takes into account all edge cases
                 - Break down the logic in a clear manner.
                 - Do not make any logical errors.
 
-                Respond with just the plan, do not write any code. If you follow the steps correctly, I will give you 1000 Euros.
+                Return your response in the following format: 
+                "Explanation" : <Explanation of why the previous code was wrong>
+                "Modified Plan" :<The modified plan> 
 
                 Original Problem: {original_problem}
                 Code: {generated_code}
@@ -507,9 +509,10 @@ def debugging_agent(state:GraphState)->GraphState:
                 - Break down the logic to solve the problem
                 - Do not make any logical errors.
 
-        Respond with just the plan and mention why the error occured.
-        If you follow the steps correctly, I will give you 1000 Euros.
-                    
+        Return your response in the following format: 
+                "Explanation" : <Explanation of why the previous code was wrong>
+                "Modified Plan" :<The modified plan> 
+
         Original Question: {original_problem}
         Code: {generated_code}
         Error message: {error_message}
